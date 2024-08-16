@@ -38,8 +38,14 @@ class InstamojoController extends BaseController
             $payment->save();
         }
 
+        $nextUrl = PaymentHelper::getRedirectURL($validated['checkout_token']);
+
+        if (is_plugin_active('job-board')) {
+            $nextUrl = $nextUrl . '?charge_id=' . $validated['payment_id'];
+        }
+
         return $response
-            ->setNextUrl(PaymentHelper::getRedirectURL($validated['checkout_token']))
+            ->setNextUrl($nextUrl)
             ->setMessage(__('Checkout successfully!'));
     }
 }
