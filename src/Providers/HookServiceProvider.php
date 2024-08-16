@@ -2,18 +2,19 @@
 
 namespace FriendsOfBotble\Instamojo\Providers;
 
+use Botble\Base\Facades\Html;
+use Botble\JobBoard\Models\Currency as CurrencyJobBoard;
+use Botble\Payment\Facades\PaymentMethods;
 use FriendsOfBotble\Instamojo\Contracts\Instamojo;
 use FriendsOfBotble\Instamojo\Services\InstamojoPaymentService;
-use Botble\Ecommerce\Models\Currency;
+use Botble\Ecommerce\Models\Currency as CurrencyEcommerce;
 use Botble\Payment\Enums\PaymentMethodEnum;
 use Botble\Payment\Enums\PaymentStatusEnum;
 use Botble\Payment\Models\Payment;
-use Collective\Html\HtmlFacade as Html;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\ServiceProvider;
-use PaymentMethods;
 
 class HookServiceProvider extends ServiceProvider
 {
@@ -55,7 +56,7 @@ class HookServiceProvider extends ServiceProvider
             if (get_payment_setting('status', InstamojoServiceProvider::MODULE_NAME)) {
                 $supportedCurrencies = $this->app->make(InstamojoPaymentService::class)->getSupportedCurrencies();
                 $currencies = get_all_currencies()
-                    ->filter(fn (Currency $currency) => in_array($currency->title, $supportedCurrencies));
+                    ->filter(fn ($currency) => in_array($currency->title, $supportedCurrencies));
 
                 PaymentMethods::method(InstamojoServiceProvider::MODULE_NAME, [
                     'html' => view('plugins/instamojo::method', array_merge($data, [
@@ -87,7 +88,8 @@ class HookServiceProvider extends ServiceProvider
             $paymentData = apply_filters(PAYMENT_FILTER_PAYMENT_DATA, [], $request);
 
             if (strtoupper($currentCurrency->title) !== 'INR') {
-                $supportedCurrency = Currency::query()->where('title', 'INR')->first();
+                $currency = is_plugin_active('ecommerce') ? CurrencyEcommerce::class : CurrencyJobBoard::class;
+                $supportedCurrency = $currency::query()->where('title', 'INR')->first();
 
                 if ($supportedCurrency) {
                     $paymentData['currency'] = strtoupper($supportedCurrency->title);
@@ -116,6 +118,7 @@ class HookServiceProvider extends ServiceProvider
             }
 
             $instamojo = $this->app->make(Instamojo::class);
+
 
             try {
                 $response = $instamojo->createPaymentRequest([
@@ -152,6 +155,7 @@ class HookServiceProvider extends ServiceProvider
                         'customer_id' => $paymentData['customer_id'],
                         'customer_type' => $paymentData['customer_type'],
                         'payment_type' => 'direct',
+                        'currency' => $paymentData['currency'],
                     ], $request);
 
                     header('Location: ' . $response['longurl']);
