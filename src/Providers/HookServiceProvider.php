@@ -9,6 +9,7 @@ use FriendsOfBotble\Instamojo\Contracts\Instamojo;
 use FriendsOfBotble\Instamojo\Services\InstamojoPaymentService;
 use Botble\Ecommerce\Models\Currency as CurrencyEcommerce;
 use Botble\RealEstate\Models\Currency as CurrencyRealEstate;
+use Botble\Hotel\Models\Currency as CurrencyHotel;
 use Botble\Payment\Enums\PaymentMethodEnum;
 use Botble\Payment\Enums\PaymentStatusEnum;
 use Botble\Payment\Models\Payment;
@@ -93,6 +94,7 @@ class HookServiceProvider extends ServiceProvider
                     is_plugin_active('ecommerce') => CurrencyEcommerce::class,
                     is_plugin_active('job-board') => CurrencyJobBoard::class,
                     is_plugin_active('real-estate') => CurrencyRealEstate::class,
+                    is_plugin_active('hotel') => CurrencyHotel::class,
                     default => null,
                 };
 

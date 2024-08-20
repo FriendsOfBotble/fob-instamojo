@@ -4,6 +4,7 @@ namespace FriendsOfBotble\Instamojo\Http\Controllers;
 
 use Botble\Base\Http\Controllers\BaseController;
 use Botble\Base\Http\Responses\BaseHttpResponse;
+use Botble\Hotel\Models\Booking;
 use Botble\Payment\Enums\PaymentStatusEnum;
 use Botble\Payment\Models\Payment;
 use Botble\Payment\Supports\PaymentHelper;
@@ -36,6 +37,22 @@ class InstamojoController extends BaseController
                 'status' => $status,
             ]);
             $payment->save();
+        }
+
+        if (is_plugin_active('hotel')) {
+            $booking = Booking::query()
+                ->select('transaction_id')
+                ->find($payment->order_id);
+
+            if (! $booking) {
+                return $response
+                    ->setNextUrl(PaymentHelper::getCancelURL($validated['checkout_token']))
+                    ->setMessage(__('Checkout failed!'));
+            }
+
+            return $response
+                ->setNextUrl(PaymentHelper::getRedirectURL($booking->transaction_id))
+                ->setMessage(__('Checkout successfully!'));
         }
 
         $nextUrl = PaymentHelper::getRedirectURL($validated['checkout_token']);
