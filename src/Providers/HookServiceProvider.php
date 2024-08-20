@@ -8,6 +8,7 @@ use Botble\Payment\Facades\PaymentMethods;
 use FriendsOfBotble\Instamojo\Contracts\Instamojo;
 use FriendsOfBotble\Instamojo\Services\InstamojoPaymentService;
 use Botble\Ecommerce\Models\Currency as CurrencyEcommerce;
+use Botble\RealEstate\Models\Currency as CurrencyRealEstate;
 use Botble\Payment\Enums\PaymentMethodEnum;
 use Botble\Payment\Enums\PaymentStatusEnum;
 use Botble\Payment\Models\Payment;
@@ -88,7 +89,13 @@ class HookServiceProvider extends ServiceProvider
             $paymentData = apply_filters(PAYMENT_FILTER_PAYMENT_DATA, [], $request);
 
             if (strtoupper($currentCurrency->title) !== 'INR') {
-                $currency = is_plugin_active('ecommerce') ? CurrencyEcommerce::class : CurrencyJobBoard::class;
+                $currency = match (true) {
+                    is_plugin_active('ecommerce') => CurrencyEcommerce::class,
+                    is_plugin_active('job-board') => CurrencyJobBoard::class,
+                    is_plugin_active('real-estate') => CurrencyRealEstate::class,
+                    default => null,
+                };
+
                 $supportedCurrency = $currency::query()->where('title', 'INR')->first();
 
                 if ($supportedCurrency) {
