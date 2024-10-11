@@ -1,5 +1,5 @@
 {
-    "id": "friendsofbotble/instamojo",
+    "id": "friendsofbotble/fob-instamojo",
     "name": "Instamojo Payment Gateway",
     "namespace": "FriendsOfBotble\\Instamojo\\",
     "provider": "FriendsOfBotble\\Instamojo\\Providers\\InstamojoServiceProvider",
