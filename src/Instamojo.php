@@ -4,6 +4,7 @@ namespace FriendsOfBotble\Instamojo;
 
 use FriendsOfBotble\Instamojo\Contracts\Instamojo as InstamojoContract;
 use FriendsOfBotble\Instamojo\Exceptions\ClientIdOrSecretNotProvidedException;
+use FriendsOfBotble\Instamojo\Exceptions\CouldNotGenerateAccessTokenException;
 use FriendsOfBotble\Instamojo\Exceptions\InvalidInstamojoEnvironmentException;
 use FriendsOfBotble\Instamojo\ObjectValues\InstamojoToken;
 use FriendsOfBotble\Instamojo\Providers\InstamojoServiceProvider;
@@ -37,7 +38,7 @@ class Instamojo implements InstamojoContract
         return $this->request('POST', "/v2/payments/$paymentId/refund/", $data);
     }
 
-    protected function request(string $method, string $uri, array $data = []): array
+    protected function request(string $method, string $uri, array $data = [], bool $retried = false): array
     {
         $pendingRequest = Http::baseUrl($this->getEndpointUrl());
 
@@ -48,13 +49,14 @@ class Instamojo implements InstamojoContract
         /** @var \Illuminate\Http\Client\Response $response */
         $response =  $pendingRequest->{$method}($uri, $data);
 
-        if ($response->unauthorized()) {
+        // Refresh an expired token once; retrying forever would loop when the credentials are wrong.
+        if ($response->unauthorized() && ! $retried) {
             $this->generateAccessToken();
 
-            return $this->request($method, $uri, $data);
+            return $this->request($method, $uri, $data, true);
         }
 
-        return $response->json();
+        return (array) $response->json();
     }
 
     protected function generateAccessToken(): InstamojoToken
@@ -66,13 +68,18 @@ class Instamojo implements InstamojoContract
             throw new ClientIdOrSecretNotProvidedException();
         }
 
-        $response = $this->request('POST', '/oauth2/token/', [
+        // The token endpoint takes a form-encoded body and no bearer token, so call it directly.
+        $response = Http::asForm()->post($this->getEndpointUrl('/oauth2/token/'), [
             'client_id' => $clientId,
             'client_secret' => $clientSecret,
             'grant_type' => 'client_credentials',
         ]);
 
-        return new InstamojoToken(data_get($response, 'access_token'), data_get($response, 'expires_in'));
+        if (! $response->successful() || ! $response->json('access_token')) {
+            throw new CouldNotGenerateAccessTokenException('Could not get an Instamojo access token, please check the client ID and secret.');
+        }
+
+        return new InstamojoToken((string) $response->json('access_token'), (int) $response->json('expires_in'));
     }
 
     protected function getEndpointUrl(string $uri = null): string
